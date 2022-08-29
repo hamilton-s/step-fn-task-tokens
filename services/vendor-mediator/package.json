@@ -1,5 +1,9 @@
 {
   "type": "module",
+  "dependencies": {
+    "@aws-sdk/client-eventbridge": "^3.159.0",
+    "aws-sdk": "^2.1204.0"
+  },
   "devDependencies": {
     "serverless": "^3.22.0"
   }
