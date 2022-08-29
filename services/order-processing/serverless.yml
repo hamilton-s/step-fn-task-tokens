@@ -1,0 +1,48 @@
+service: order-processing-service
+
+frameworkVersion: "3"
+
+plugins:
+  - serverless-step-functions
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  region: eu-west-2
+  eventBridge:
+    useCloudFormation: true
+
+  iamRoleStatements:
+    - Effect: Allow
+      Action: "*"
+      Resource: "*"
+
+stepFunctions:
+  stateMachines:
+    order-processing-stepfn:
+      name: order-processing-stepfn
+      definition:
+        Comment: "Step function to process and order"
+        StartAt: UpdateRewards
+        States:
+          UpdateRewards:
+            Comment: Dispatch Task Token to update rewards
+            Type: Task
+            Resource: "arn:aws:states:::events:putEvents.waitForTaskToken"
+            HeartbeatSeconds: 18000 # 5 hours timeout
+            Parameters:
+              Entries:
+                - Detail:
+                    data.$: "$.processedRewards"
+                    metadata:
+                      domain: "LEGO-LOYALTY"
+                      service: "service-loyalty-rewards"
+                      category: "task-status"
+                      type: "customer-rewards"
+                      status: "processed"
+                    TaskToken.$: $$.Task.Token
+                  DetailType: event
+                  EventBusName: loyalty-event-bus
+                  Source: service-loyalty-rewards
+            ResultPath: "$.rewardsResult"
+            End: true

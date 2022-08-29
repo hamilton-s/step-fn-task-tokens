@@ -1,0 +1,6 @@
+{
+  "devDependencies": {
+    "serverless": "^3.22.0",
+    "serverless-step-functions": "^3.8.0"
+  }
+}
