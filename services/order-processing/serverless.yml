@@ -55,4 +55,19 @@ stepFunctions:
                   EventBusName: loyalty-event-bus
                   Source: service-loyalty-rewards
             ResultPath: "$.taskresult"
+            Next: UpdateTable
+          UpdateTable:
+            Type: Task
+            Resource: "arn:aws:states:::dynamodb:updateItem"
+            Parameters:
+              TableName: order-processing-table
+              Key:
+                pk.$: "$.loyalty_reward_reference"
+              UpdateExpression: "set #status = :statusVal"
+              ExpressionAttributeNames:
+                "#status": "saleStatus"
+              ExpressionAttributeValues:
+                ":statusVal": "SUBMITTED"
+              ReturnValues: "UPDATED_NEW"
+            ResultPath: null
             End: true
