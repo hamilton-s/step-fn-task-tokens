@@ -1,0 +1,34 @@
+service: vendor-mediator-service
+
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  region: eu-west-2
+  eventBridge:
+    useCloudFormation: true
+
+  iamRoleStatements:
+    - Effect: Allow
+      Action: "*"
+      Resource: "*"
+
+functions:
+  sendRewardsToDB:
+    handler: sendRewardsToDB.default
+    events:
+      - eventBridge:
+          eventBus: arn:aws:events:eu-west-2:xxx:event-bus/loyalty-event-bus
+          pattern:
+            detail:
+              metadata:
+                domain:
+                  - "LEGO-LOYALTY"
+                service:
+                  - "service-loyalty-rewards"
+                status:
+                  - "processed"
+              data:
+                type:
+                  - "REWARDS"
