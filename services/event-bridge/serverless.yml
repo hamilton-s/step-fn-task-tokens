@@ -1,0 +1,25 @@
+service: event-bridge-service
+
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  region: eu-west-2
+  eventBridge:
+    useCloudFormation: true
+
+  iamRoleStatements:
+    - Effect: Allow
+      Action: "*"
+      Resource: "*"
+
+  environment:
+    HTTP_API_KEY: ${ssm:/HTTP_API_KEY}
+
+resources:
+  Resources:
+    LoyaltyInternalEventBus:
+      Type: AWS::Events::EventBus
+      Properties:
+        Name: loyalty-event-bus
