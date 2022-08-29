@@ -17,6 +17,16 @@ provider:
       Action: "*"
       Resource: "*"
 
+functions:
+  taskTokenResponseHandler:
+    name: task-token-response-handler
+    handler: taskTokenResponseHandler.default
+    events:
+      - eventBridge:
+          eventBus: arn:aws:events:eu-west-2:xxx:event-bus/loyalty-event-bus
+          pattern:
+            source: ["sendRewardsToDB"]
+
 stepFunctions:
   stateMachines:
     order-processing-stepfn:
@@ -44,5 +54,5 @@ stepFunctions:
                   DetailType: event
                   EventBusName: loyalty-event-bus
                   Source: service-loyalty-rewards
-            ResultPath: "$.rewardsResult"
+            ResultPath: "$.taskresult"
             End: true
