@@ -25,7 +25,12 @@ functions:
       - eventBridge:
           eventBus: arn:aws:events:eu-west-2:xxx:event-bus/loyalty-event-bus
           pattern:
-            source: ["sendRewardsToDB"]
+            detail:
+              metadata:
+                domain:
+                  - "LEGO-LOYALTY"
+                service:
+                  - "loyalty-vendor-mediator"
 
 stepFunctions:
   stateMachines:
@@ -39,24 +44,24 @@ stepFunctions:
             Comment: Dispatch Task Token to update rewards
             Type: Task
             Resource: "arn:aws:states:::events:putEvents.waitForTaskToken"
-            HeartbeatSeconds: 18000 # 5 hours timeout
             Parameters:
               Entries:
                 - Detail:
-                    data.$: "$.processedRewards"
+                    data.$: $
                     metadata:
                       domain: "LEGO-LOYALTY"
-                      service: "service-loyalty-rewards"
+                      service: "loyalty-order-processing"
                       category: "task-status"
                       type: "customer-rewards"
                       status: "processed"
                     TaskToken.$: $$.Task.Token
                   DetailType: event
                   EventBusName: loyalty-event-bus
-                  Source: service-loyalty-rewards
+                  Source: loyalty-order-processing
             ResultPath: "$.taskresult"
             Next: UpdateTable
           UpdateTable:
+            Comment: Update order processing dynamoDB table
             Type: Task
             Resource: "arn:aws:states:::dynamodb:updateItem"
             Parameters:

@@ -11,7 +11,7 @@ export const createEventCommand = (status, taskToken) => {
           metadata: {
             status,
             domain: "LEGO-LOYALTY",
-            service: "service-loyalty-rewards",
+            service: "loyalty-vendor-mediator",
             category: "task-status",
             type: "sendRewardsToDB",
           },

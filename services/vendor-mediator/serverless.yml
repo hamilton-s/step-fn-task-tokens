@@ -2,6 +2,9 @@ service: vendor-mediator-service
 
 frameworkVersion: "3"
 
+plugins:
+  - serverless-step-functions
+
 provider:
   name: aws
   runtime: nodejs14.x
@@ -14,21 +17,86 @@ provider:
       Action: "*"
       Resource: "*"
 
-functions:
-  sendRewardsToDB:
-    handler: sendRewardsToDB.default
-    events:
-      - eventBridge:
-          eventBus: arn:aws:events:eu-west-2:xxx:event-bus/loyalty-event-bus
-          pattern:
-            detail:
-              metadata:
-                domain:
-                  - "LEGO-LOYALTY"
-                service:
-                  - "service-loyalty-rewards"
-                status:
-                  - "processed"
-              data:
-                type:
-                  - "REWARDS"
+stepFunctions:
+  stateMachines:
+    vendor-mediator-stepfn:
+      name: vendor-mediator-stepfn
+      role:
+        Fn::GetAtt: ["StateMachineRole", "Arn"]
+      events:
+        - eventBridge:
+            eventBusName: "arn:aws:events:eu-west-2:xxx:event-bus/loyalty-event-bus"
+            inputPath: $.detail
+            event:
+              detail:
+                metadata:
+                  domain: ["LEGO-LOYALTY"]
+                  service: ["loyalty-order-processing"]
+      definition:
+        Comment: "Step function to update third party DB"
+        StartAt: UpdateTable
+        States:
+          UpdateTable:
+            Type: Task
+            Resource: "arn:aws:states:::dynamodb:updateItem"
+            Parameters:
+              TableName: vendor-mediator-table
+              Key:
+                pk.$: "$.data.loyalty_reward_reference"
+              UpdateExpression: "set points = :points"
+              ExpressionAttributeValues:
+                ":points.$": "$.data.points"
+              ReturnValues: "UPDATED_NEW"
+            ResultPath: null
+            Next: SendTaskToken
+          SendTaskToken:
+            Comment: Send update to order-processing
+            Type: Task
+            Resource: "arn:aws:states:::events:putEvents"
+            Parameters:
+              Entries:
+                - Detail:
+                    data.$: "$"
+                    metadata:
+                      domain: "LEGO-LOYALTY"
+                      service: "loyalty-vendor-mediator"
+                      category: "task-status"
+                      type: "sendRewardsToDB"
+                      status: "SUCCESS"
+                    TaskToken.$: $.TaskToken
+                  DetailType: event
+                  EventBusName: "arn:aws:events:eu-west-2:xxx:event-bus/loyalty-event-bus"
+                  Source: loyalty-vendor-mediator
+            ResultPath: "$.taskresult"
+            End: true
+
+resources:
+  Resources:
+    StateMachineRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: ServiceLoyaltyOrdersStepFunction
+        Path: /
+        AssumeRolePolicyDocument:
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - states.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: statePolicy
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - events:PutEvents
+                  Resource:
+                    - arn:aws:events:eu-west-2:xxx:event-bus/loyalty-event-bus
+                - Effect: Allow
+                  Action:
+                    - dynamodb:UpdateItem
+                  Resource:
+                    - arn:aws:dynamodb:eu-west-2:xxx:table/vendor-mediator-table
